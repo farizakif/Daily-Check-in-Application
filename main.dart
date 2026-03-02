@@ -1,0 +1,61 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'core/theme/app_theme.dart';
+import 'data/datasources/checkin_local_datasource.dart';
+import 'data/repositories/checkin_repository_impl.dart';
+import 'domain/repositories/checkin_repository.dart';
+import 'domain/usecases/get_checkin_history.dart';
+import 'domain/usecases/get_today_checkin.dart';
+import 'domain/usecases/has_checked_in_today.dart';
+import 'domain/usecases/perform_checkin.dart';
+import 'presentation/bloc/checkin_bloc.dart';
+import 'presentation/pages/home_page.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final localDataSource = await CheckInLocalDataSourceImpl.create();
+  final repository = CheckInRepositoryImpl(localDataSource: localDataSource);
+
+  runApp(MyApp(repository: repository));
+}
+
+class MyApp extends StatelessWidget {
+  final CheckInRepository repository;
+
+  const MyApp({super.key, required this.repository});
+
+  @override
+  Widget build(BuildContext context) {
+    return RepositoryProvider<CheckInRepository>.value(
+      value: repository,
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<CheckInBloc>(
+            create: (context) {
+              final repo = context.read<CheckInRepository>();
+              final performCheckIn = PerformCheckIn(repo);
+              final getCheckInHistory = GetCheckInHistory(repo);
+              final hasCheckedInToday = HasCheckedInToday(repo);
+              final getTodayCheckIn = GetTodayCheckIn(repo);
+
+              return CheckInBloc(
+                performCheckInUseCase: performCheckIn,
+                getCheckInHistoryUseCase: getCheckInHistory,
+                hasCheckedInTodayUseCase: hasCheckedInToday,
+                getTodayCheckInUseCase: getTodayCheckIn,
+              );
+            },
+          ),
+        ],
+        child: MaterialApp(
+          title: 'CheckIn',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          home: const HomePage(),
+        ),
+      ),
+    );
+  }
+}

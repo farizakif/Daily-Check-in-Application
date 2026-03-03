@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-import '../../../../core/utils/date_utils.dart';
 import '../../domain/entities/checkin_entity.dart';
 
 class CheckInStatusCard extends StatelessWidget {
   final bool hasCheckedInToday;
-  final List<CheckInEntity> checkIns;
+  final List<CheckIn> checkIns;
 
   const CheckInStatusCard({
     super.key,
@@ -18,25 +16,26 @@ class CheckInStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final today = DateTime.now();
-    final todayDateOnly = AppDateUtils.dateOnly(today);
+    final todayDateOnly = today;
 
     final todayCheckIn = checkIns.firstWhere(
-      (c) => AppDateUtils.isSameDate(c.date, todayDateOnly),
-      orElse: () => CheckInEntity(
-        id: '',
-        date: DateTime.fromMillisecondsSinceEpoch(0),
-        time: DateTime.fromMillisecondsSinceEpoch(0),
+      (c) => c.dateTime.year == todayDateOnly.year &&
+          c.dateTime.month == todayDateOnly.month &&
+          c.dateTime.day == todayDateOnly.day,
+      orElse: () => CheckIn(
+        id: 0,
+        dateTime: DateTime.fromMillisecondsSinceEpoch(0),
       ),
     );
 
-    final hasValidToday = todayCheckIn.id.isNotEmpty;
+    final hasValidToday = todayCheckIn.id != null && todayCheckIn.id != 0;
 
     final titleText = hasCheckedInToday && hasValidToday
         ? 'You\'re checked in for today'
         : 'No check-in yet today';
 
     final subtitleText = hasCheckedInToday && hasValidToday
-        ? 'Checked in at ${DateFormat('hh:mm a').format(todayCheckIn.time)}'
+        ? 'Checked in at ${DateFormat('hh:mm a').format(todayCheckIn.dateTime)}'
         : 'Tap the button below to check in and keep your habit going.';
 
     final icon = hasCheckedInToday && hasValidToday

@@ -1,12 +1,13 @@
 import '../entities/checkin_entity.dart';
 import '../repositories/checkin_repository.dart';
 
-class GetTodayCheckIn {
+class PerformCheckIn {
   final CheckInRepository repository;
 
-  GetTodayCheckIn(this.repository);
+  PerformCheckIn(this.repository);
 
-  Future<CheckIn?> call() {
-    return repository.getTodayCheckIn();
+  Future<CheckIn> call() {
+    return repository.performCheckIn();
   }
 }
+

@@ -1,111 +1,145 @@
 import 'package:bloc/bloc.dart';
 
-import '../../../../core/errors/failures.dart';
+import '../../../../core/utils/date_utils.dart';
+import '../../domain/exceptions/checkin_exceptions.dart';
 import '../../domain/entities/checkin_entity.dart';
-import '../../domain/usecases/check_in_usecase.dart';
-import '../../domain/usecases/get_checkins_usecase.dart';
+import '../../domain/usecases/get_checkin_history.dart';
+import '../../domain/usecases/get_today_checkin.dart';
 import '../../domain/usecases/has_checked_in_today_usecase.dart';
+import '../../domain/usecases/perform_checkin.dart';
 import 'checkin_event.dart';
 import 'checkin_state.dart';
 
 class CheckInBloc extends Bloc<CheckInEvent, CheckInState> {
-  final GetCheckInsUseCase getCheckInsUseCase;
-  final HasCheckedInTodayUseCase hasCheckedInTodayUseCase;
-  final CheckInUseCase checkInUseCase;
+  final PerformCheckIn performCheckInUseCase;
+  final GetCheckInHistory getCheckInHistoryUseCase;
+  final HasCheckedInToday hasCheckedInTodayUseCase;
+  final GetTodayCheckIn getTodayCheckInUseCase;
 
   CheckInBloc({
-    required this.getCheckInsUseCase,
+    required this.performCheckInUseCase,
+    required this.getCheckInHistoryUseCase,
     required this.hasCheckedInTodayUseCase,
-    required this.checkInUseCase,
-  }) : super(const CheckInInitial()) {
-    on<LoadCheckInsEvent>(_onLoad);
+    required this.getTodayCheckInUseCase,
+  }) : super(CheckInInitial()) {
+    on<LoadCheckInStatus>(_onLoadStatus);
     on<RefreshCheckInsEvent>(_onRefresh);
+    on<LoadCheckInsEvent>(_onLoadCheckIns);
     on<PerformCheckInEvent>(_onPerformCheckIn);
-  }
-
-  Future<void> _onLoad(
-    LoadCheckInsEvent event,
-    Emitter<CheckInState> emit,
-  ) async {
-    emit(const CheckInLoading());
-    try {
-      final checkIns = await getCheckInsUseCase();
-      final hasCheckedInToday = await hasCheckedInTodayUseCase();
-
-      final normalized = _normalizeHistory(checkIns);
-
-      emit(CheckInLoaded(
-        checkIns: normalized,
-        hasCheckedInToday: hasCheckedInToday,
-      ));
-    } catch (e) {
-      emit(CheckInError(_mapErrorToMessage(e)));
-    }
+    on<LoadHistory>(_onLoadHistory);
   }
 
   Future<void> _onRefresh(
     RefreshCheckInsEvent event,
     Emitter<CheckInState> emit,
   ) async {
-    await _onLoad(const LoadCheckInsEvent(), emit);
+    await _onLoadStatus(LoadCheckInStatus(), emit);
+  }
+
+  Future<void> _onLoadCheckIns(
+    LoadCheckInsEvent event,
+    Emitter<CheckInState> emit,
+  ) async {
+    await _onLoadStatus(LoadCheckInStatus(), emit);
+  }
+
+  Future<void> _onLoadStatus(
+    LoadCheckInStatus event,
+    Emitter<CheckInState> emit,
+  ) async {
+    emit(CheckInLoading());
+    try {
+      final hasCheckedIn = await hasCheckedInTodayUseCase();
+      final todayCheckIn = await getTodayCheckInUseCase();
+      final history = await getCheckInHistoryUseCase(limit: 30);
+      final streak = _calculateStreak(history);
+
+      emit(
+        CheckInLoaded(
+          hasCheckedInToday: hasCheckedIn,
+          todayCheckInTime: todayCheckIn?.dateTime,
+          streakCount: streak,
+          checkIns: history,
+        ),
+      );
+    } catch (e) {
+      emit(CheckInError(message: 'Failed to load status. Please try again.'));
+    }
   }
 
   Future<void> _onPerformCheckIn(
     PerformCheckInEvent event,
     Emitter<CheckInState> emit,
   ) async {
-    final currentState = state;
-
-    emit(const CheckInLoading());
-
+    emit(CheckInLoading());
     try {
-      final alreadyCheckedInToday = await hasCheckedInTodayUseCase();
+      final checkIn = await performCheckInUseCase();
+      final history = await getCheckInHistoryUseCase(limit: 30);
+      final streak = _calculateStreak(history);
+      final hasCheckedIn = await hasCheckedInTodayUseCase();
 
-      if (alreadyCheckedInToday) {
-        if (currentState is CheckInLoaded) {
-          emit(currentState);
-        } else {
-          final checkIns = await getCheckInsUseCase();
-          final normalized = _normalizeHistory(checkIns);
-          emit(CheckInLoaded(
-            checkIns: normalized,
-            hasCheckedInToday: true,
-          ));
-        }
-        emit(const CheckInError('You have already checked in today.'));
-        return;
-      }
+      emit(
+        CheckInLoaded(
+          hasCheckedInToday: hasCheckedIn,
+          todayCheckInTime: checkIn.dateTime,
+          streakCount: streak,
+          checkIns: history,
+        ),
+      );
+    } on CheckInAlreadyDoneException {
+      final todayCheckIn = await getTodayCheckInUseCase();
+      final history = await getCheckInHistoryUseCase(limit: 30);
+      final streak = _calculateStreak(history);
 
-      await checkInUseCase();
-
-      final checkIns = await getCheckInsUseCase();
-      final hasCheckedInToday = await hasCheckedInTodayUseCase();
-
-      final normalized = _normalizeHistory(checkIns);
-
-      emit(CheckInLoaded(
-        checkIns: normalized,
-        hasCheckedInToday: hasCheckedInToday,
-      ));
-    } catch (e) {
-      emit(CheckInError(_mapErrorToMessage(e)));
+      emit(
+        CheckInLoaded(
+          hasCheckedInToday: true,
+          todayCheckInTime: todayCheckIn?.dateTime ?? DateTime.now(),
+          streakCount: streak,
+          checkIns: history,
+        ),
+      );
+    } catch (_) {
+      emit(CheckInError(message: 'Could not check in. Please try again.'));
     }
   }
 
-  List<CheckInEntity> _normalizeHistory(List<CheckInEntity> checkIns) {
-    final sorted = List<CheckInEntity>.from(checkIns)
-      ..sort((a, b) => b.time.compareTo(a.time));
-
-    if (sorted.length <= 30) {
-      return List<CheckInEntity>.unmodifiable(sorted);
+  Future<void> _onLoadHistory(
+    LoadHistory event,
+    Emitter<CheckInState> emit,
+  ) async {
+    emit(CheckInLoading());
+    try {
+      final history = await getCheckInHistoryUseCase(limit: 30);
+      // Materialise last 30 calendar days so presentation can compute misses.
+      final last30Days = DateUtilsHelper.last30Days();
+      emit(CheckInHistoryLoaded(checkIns: history, last30Days: last30Days));
+    } catch (_) {
+      emit(CheckInError(message: 'Failed to load history. Please try again.'));
     }
-    return List<CheckInEntity>.unmodifiable(sorted.take(30).toList());
   }
 
-  String _mapErrorToMessage(Object e) {
-    if (e is CacheFailure) {
-      return e.message;
+  int _calculateStreak(List<CheckIn> history) {
+    if (history.isEmpty) return 0;
+
+    final normalizedDates = history
+        .map((c) => DateTime(c.dateTime.year, c.dateTime.month, c.dateTime.day))
+        .toSet();
+
+    final now = DateTime.now();
+    DateTime cursor = DateTime(now.year, now.month, now.day);
+
+    int streak = 0;
+
+    if (!normalizedDates.contains(cursor)) {
+      return 0;
     }
-    return 'Something went wrong. Please try again.';
+
+    while (normalizedDates.contains(cursor)) {
+      streak++;
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+
+    return streak;
   }
 }

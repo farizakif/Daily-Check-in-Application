@@ -7,14 +7,23 @@ abstract class CheckInEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class LoadCheckInsEvent extends CheckInEvent {
-  const LoadCheckInsEvent();
+class LoadCheckInStatus extends CheckInEvent {
+  const LoadCheckInStatus();
 }
 
 class PerformCheckInEvent extends CheckInEvent {
   const PerformCheckInEvent();
 }
 
+class LoadHistory extends CheckInEvent {
+  const LoadHistory();
+}
+
 class RefreshCheckInsEvent extends CheckInEvent {
   const RefreshCheckInsEvent();
 }
+
+class LoadCheckInsEvent extends CheckInEvent {
+  const LoadCheckInsEvent();
+}
+

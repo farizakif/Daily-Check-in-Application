@@ -1,12 +1,8 @@
-import 'dart:math';
-
-import '../../../../core/errors/exceptions.dart';
-import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/date_utils.dart';
+import '../../domain/exceptions/checkin_exceptions.dart';
 import '../../domain/entities/checkin_entity.dart';
 import '../../domain/repositories/checkin_repository.dart';
 import '../datasources/checkin_local_data_source.dart';
-import '../models/checkin_model.dart';
 
 class CheckInRepositoryImpl implements CheckInRepository {
   final CheckInLocalDataSource localDataSource;
@@ -14,72 +10,37 @@ class CheckInRepositoryImpl implements CheckInRepository {
   CheckInRepositoryImpl({required this.localDataSource});
 
   @override
-  Future<void> checkIn() async {
-    try {
-      final now = DateTime.now();
-      final dateOnly = AppDateUtils.dateOnly(now);
+  Future<CheckIn> checkIn() => performCheckIn();
 
-      final existing = await localDataSource.getCheckIns();
+  @override
+  Future<CheckIn> performCheckIn() async {
+    final alreadyCheckedIn = await localDataSource.hasCheckedInToday();
+    if (alreadyCheckedIn) {
+      throw CheckInAlreadyDoneException();
+    }
+    return localDataSource.insertCheckIn();
+  }
 
-      final alreadyCheckedInToday = existing.any(
-        (c) => AppDateUtils.isSameDate(c.date, dateOnly),
-      );
+  @override
+  Future<List<CheckIn>> getCheckInHistory({int limit = 30}) async {
+    final list = await localDataSource.getAllCheckIns();
+    return list.take(limit).toList();
+  }
 
-      if (alreadyCheckedInToday) {
-        throw const CacheFailure('Already checked in today');
+  @override
+  Future<bool> hasCheckedInToday() {
+    return localDataSource.hasCheckedInToday();
+  }
+
+  @override
+  Future<CheckIn?> getTodayCheckIn() async {
+    final all = await localDataSource.getAllCheckIns();
+    final todayKey = DateUtilsHelper.formatDateKey(DateTime.now());
+    for (final c in all) {
+      if (DateUtilsHelper.formatDateKey(c.dateTime) == todayKey) {
+        return c;
       }
-
-      final id = _generateId(now);
-
-      final model = CheckInModel(
-        id: id,
-        date: dateOnly,
-        time: now,
-      );
-
-      await localDataSource.addCheckIn(model);
-    } on CacheFailure {
-      rethrow;
-    } on CacheException catch (e) {
-      throw CacheFailure(e.message);
-    } catch (e) {
-      throw CacheFailure('Failed to perform check-in: $e');
     }
-  }
-
-  @override
-  Future<List<CheckInEntity>> getCheckIns() async {
-    try {
-      final models = await localDataSource.getCheckIns();
-
-      final sorted = List<CheckInModel>.from(models)
-        ..sort((a, b) => b.time.compareTo(a.time));
-
-      return List<CheckInEntity>.unmodifiable(sorted);
-    } on CacheException catch (e) {
-      throw CacheFailure(e.message);
-    } catch (e) {
-      throw CacheFailure('Failed to load check-ins: $e');
-    }
-  }
-
-  @override
-  Future<bool> hasCheckedInToday() async {
-    try {
-      final models = await localDataSource.getCheckIns();
-      final today = AppDateUtils.dateOnly(DateTime.now());
-
-      return models.any((c) => AppDateUtils.isSameDate(c.date, today));
-    } on CacheException {
-      return false;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  String _generateId(DateTime time) {
-    final rand = Random();
-    final randomPart = rand.nextInt(1 << 32);
-    return '${time.millisecondsSinceEpoch}_$randomPart';
+    return null;
   }
 }

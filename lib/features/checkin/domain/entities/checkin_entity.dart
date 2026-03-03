@@ -1,16 +1,15 @@
 import 'package:equatable/equatable.dart';
 
-class CheckInEntity extends Equatable {
-  final String id;
-  final DateTime date;
-  final DateTime time;
+class CheckIn extends Equatable {
+  final int? id;
+  final DateTime dateTime;
 
-  const CheckInEntity({
-    required this.id,
-    required this.date,
-    required this.time,
+  const CheckIn({
+    this.id,
+    required this.dateTime,
   });
 
   @override
-  List<Object> get props => [id, date, time];
+  List<Object?> get props => [id, dateTime];
 }
+

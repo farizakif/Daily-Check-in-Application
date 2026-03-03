@@ -1,47 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  const AppTheme._();
+  static const Color _primaryColor = Color(0xFF0D1B2A);
+  static const Color _accentColor = Color(0xFF00C9A7);
+  static const Color _backgroundColor = Color(0xFFF4F6F9);
+  static const Color primaryColor = _primaryColor;
+  static const Color accentColor = _accentColor;
+  static const Color backgroundColor = _backgroundColor;
 
   static ThemeData get lightTheme {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: _primaryColor,
+      primary: _primaryColor,
+      secondary: _accentColor,
+    ).copyWith(surface: _backgroundColor);
+
     final base = ThemeData(
       useMaterial3: true,
-      colorSchemeSeed: Colors.indigo,
-      brightness: Brightness.light,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: _backgroundColor,
+    );
+
+    final textTheme = GoogleFonts.dmSansTextTheme(base.textTheme).copyWith(
+      headlineLarge: GoogleFonts.sora(textStyle: base.textTheme.headlineLarge),
+      headlineMedium: GoogleFonts.sora(
+        textStyle: base.textTheme.headlineMedium,
+      ),
+      headlineSmall: GoogleFonts.sora(textStyle: base.textTheme.headlineSmall),
+      titleLarge: GoogleFonts.sora(textStyle: base.textTheme.titleLarge),
     );
 
     return base.copyWith(
-      scaffoldBackgroundColor: Colors.grey[50],
-      appBarTheme: base.appBarTheme.copyWith(
+      textTheme: textTheme,
+      appBarTheme: AppBarTheme(
+        backgroundColor: _primaryColor,
+        foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        backgroundColor: Colors.transparent,
-        foregroundColor: base.colorScheme.onSurface,
-      ),
-      cardTheme: base.cardTheme.copyWith(
-        elevation: 1,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 18,
+        titleTextStyle: GoogleFonts.sora(
+          textStyle: base.textTheme.titleLarge?.copyWith(
+            color: Colors.white,
             fontWeight: FontWeight.w600,
           ),
         ),
       ),
-      snackBarTheme: base.snackBarTheme.copyWith(
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 3,
+        shadowColor: Colors.black.withValues(alpha: 0.05),
+      ),
+      snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }

@@ -1,80 +1,77 @@
-import 'dart:convert';
+import 'package:path/path.dart' as p;
+import 'package:sqflite/sqflite.dart';
 
-import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../../../core/errors/exceptions.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../models/checkin_model.dart';
 
 abstract class CheckInLocalDataSource {
-  Future<List<CheckInModel>> getCheckIns();
-  Future<void> saveCheckIns(List<CheckInModel> checkIns);
-  Future<void> addCheckIn(CheckInModel checkIn);
+  Future<CheckInModel> insertCheckIn();
+  Future<List<CheckInModel>> getAllCheckIns();
+  Future<bool> hasCheckedInToday();
 }
-
-const String _checkInListKey = 'CHECKIN_LIST';
 
 class CheckInLocalDataSourceImpl implements CheckInLocalDataSource {
-  final SharedPreferences sharedPreferences;
+  static const String _dbName = 'checkin.db';
+  static const String _tableName = 'checkins';
 
-  CheckInLocalDataSourceImpl({required this.sharedPreferences});
+  final Database db;
 
-  @override
-  Future<List<CheckInModel>> getCheckIns() async {
-    try {
-      final jsonString = sharedPreferences.getString(_checkInListKey);
-      if (jsonString == null || jsonString.isEmpty) {
-        return <CheckInModel>[];
-      }
+  CheckInLocalDataSourceImpl._(this.db);
 
-      final dynamic decoded = json.decode(jsonString);
+  static Future<CheckInLocalDataSourceImpl> create() async {
+    final databasesPath = await getDatabasesPath();
+    final path = p.join(databasesPath, _dbName);
 
-      if (decoded is! List) {
-        await sharedPreferences.remove(_checkInListKey);
-        return <CheckInModel>[];
-      }
+    final database = await openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE $_tableName(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date_time TEXT NOT NULL
+          )
+        ''');
+      },
+    );
 
-      final List<CheckInModel> checkIns = decoded
-          .whereType<Map<String, dynamic>>()
-          .map<CheckInModel>((jsonMap) => CheckInModel.fromJson(jsonMap))
-          .toList();
-
-      final filtered = checkIns.where((c) {
-        try {
-          AppDateUtils.dateOnly(c.date);
-          return true;
-        } catch (_) {
-          return false;
-        }
-      }).toList();
-
-      return filtered;
-    } on FormatException catch (e) {
-      throw CacheException('Failed to parse stored check-ins: $e');
-    } catch (e) {
-      throw CacheException('Unexpected error reading check-ins: $e');
-    }
+    return CheckInLocalDataSourceImpl._(database);
   }
 
   @override
-  Future<void> saveCheckIns(List<CheckInModel> checkIns) async {
-    try {
-      final List<Map<String, dynamic>> jsonList =
-          checkIns.map((checkIn) => checkIn.toJson()).toList();
-      final jsonString = json.encode(jsonList);
-      final success = await sharedPreferences.setString(_checkInListKey, jsonString);
-      if (!success) {
-        throw CacheException('Failed to persist check-ins');
-      }
-    } catch (e) {
-      throw CacheException('Failed to save check-ins: $e');
-    }
+  Future<CheckInModel> insertCheckIn() async {
+    final now = DateTime.now();
+    final model = CheckInModel(dateTime: now);
+
+    final id = await db.insert(
+      _tableName,
+      model.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+
+    return CheckInModel(id: id, dateTime: now);
   }
 
   @override
-  Future<void> addCheckIn(CheckInModel checkIn) async {
-    final current = await getCheckIns();
-    final updated = List<CheckInModel>.from(current)..add(checkIn);
-    await saveCheckIns(updated);
+  Future<List<CheckInModel>> getAllCheckIns() async {
+    final maps = await db.query(
+      _tableName,
+      orderBy: 'date_time DESC',
+    );
+
+    return maps.map((m) => CheckInModel.fromMap(m)).toList();
+  }
+
+  @override
+  Future<bool> hasCheckedInToday() async {
+    final todayKey = DateUtilsHelper.formatDateKey(DateTime.now());
+    final result = await db.query(
+      _tableName,
+      where: 'date(date_time) = ?',
+      whereArgs: [todayKey],
+      limit: 1,
+    );
+    return result.isNotEmpty;
   }
 }
+

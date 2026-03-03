@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import '../bloc/checkin_bloc.dart';
 import '../bloc/checkin_event.dart';
 import '../bloc/checkin_state.dart';
@@ -97,12 +96,7 @@ class CheckInPage extends StatelessWidget {
           checkIns: state.checkIns,
         ),
         const SizedBox(height: 16),
-        CheckInButton(
-          hasCheckedInToday: state.hasCheckedInToday,
-          onPressed: () {
-            context.read<CheckInBloc>().add(const PerformCheckInEvent());
-          },
-        ),
+        const CheckInButton(),
         const SizedBox(height: 24),
         HistoryList(checkIns: state.checkIns),
         const SizedBox(height: 16),

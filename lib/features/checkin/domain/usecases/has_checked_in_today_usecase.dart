@@ -1,11 +1,12 @@
 import '../repositories/checkin_repository.dart';
 
-class HasCheckedInTodayUseCase {
+class HasCheckedInToday {
   final CheckInRepository repository;
 
-  const HasCheckedInTodayUseCase(this.repository);
+  HasCheckedInToday(this.repository);
 
   Future<bool> call() {
     return repository.hasCheckedInToday();
   }
 }
+

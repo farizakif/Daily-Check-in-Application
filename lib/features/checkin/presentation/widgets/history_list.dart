@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-import '../../../../core/utils/date_utils.dart';
 import '../../domain/entities/checkin_entity.dart';
 
 class HistoryList extends StatelessWidget {
-  final List<CheckInEntity> checkIns;
+  final List<CheckIn> checkIns;
 
   const HistoryList({
     super.key,
@@ -16,19 +14,10 @@ class HistoryList extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final title = Text(
-      'History (last 30 days)',
-      style: theme.textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-      ),
-    );
-
     if (checkIns.isEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          title,
-          const SizedBox(height: 8),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -43,12 +32,41 @@ class HistoryList extends StatelessWidget {
     }
 
     final items = _buildDailyItems(checkIns);
+    final checkedInCount = items.where((item) => !item.missed).length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        title,
-        const SizedBox(height: 8),
+        Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$checkedInCount / 30 days checked in',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: checkedInCount / 30,
+                    minHeight: 8,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // History list
         ListView.builder(
           itemCount: items.length,
           shrinkWrap: true,
@@ -62,18 +80,18 @@ class HistoryList extends StatelessWidget {
     );
   }
 
-  List<_DailyHistoryItem> _buildDailyItems(List<CheckInEntity> checkIns) {
+  List<_DailyHistoryItem> _buildDailyItems(List<CheckIn> checkIns) {
     final today = DateTime.now();
-    final todayDateOnly = AppDateUtils.dateOnly(today);
+    final todayDateOnly = DateTime(today.year, today.month, today.day);
 
-    final Map<String, CheckInEntity> byDateKey = {};
+    final Map<String, CheckIn> byDateKey = {};
 
     for (final c in checkIns) {
-      final dateOnly = AppDateUtils.dateOnly(c.date);
+      final dateOnly = DateTime(c.dateTime.year, c.dateTime.month, c.dateTime.day);
       final key = _keyForDate(dateOnly);
 
       final existing = byDateKey[key];
-      if (existing == null || c.time.isAfter(existing.time)) {
+      if (existing == null || c.dateTime.isAfter(existing.dateTime)) {
         byDateKey[key] = c;
       }
     }
@@ -102,7 +120,7 @@ class HistoryList extends StatelessWidget {
 
 class _DailyHistoryItem {
   final DateTime date;
-  final CheckInEntity? checkIn;
+  final CheckIn? checkIn;
   final bool missed;
 
   const _DailyHistoryItem({
@@ -120,43 +138,33 @@ class _HistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dateFormatter = DateFormat('EEE, MMM d, y');
+    final dateFormatter = DateFormat('EEE, d MMM y');
     final timeFormatter = DateFormat('hh:mm a');
 
     final hasCheckIn = item.checkIn != null;
 
     final title = dateFormatter.format(item.date);
     final subtitle = hasCheckIn
-        ? 'Checked in at ${timeFormatter.format(item.checkIn!.time)}'
+        ? 'Checked in at ${timeFormatter.format(item.checkIn!.dateTime)}'
         : 'Missed';
 
-    final icon = hasCheckIn ? Icons.check_circle_outline : Icons.cancel_outlined;
+    final icon = hasCheckIn ? Icons.check_circle : Icons.cancel;
 
-    final colorScheme = theme.colorScheme;
-
-    final iconColor = hasCheckIn ? colorScheme.primary : colorScheme.error;
-    final chipColor = hasCheckIn
-        ? colorScheme.primary.withOpacity(0.08)
-        : colorScheme.error.withOpacity(0.06);
+    final iconColor = hasCheckIn ? Colors.green : Colors.red;
+    final subtitleColor = hasCheckIn ? theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7) : Colors.red;
 
     return Card(
+      margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: chipColor,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                size: 24,
-                color: iconColor,
-              ),
+            Icon(
+              icon,
+              size: 32,
+              color: iconColor,
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,15 +172,14 @@ class _HistoryCard extends StatelessWidget {
                   Text(
                     title,
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color:
-                          theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                      color: subtitleColor,
                     ),
                   ),
                 ],

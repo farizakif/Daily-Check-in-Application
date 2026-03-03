@@ -9,42 +9,72 @@ abstract class CheckInState extends Equatable {
   List<Object?> get props => [];
 }
 
-class CheckInInitial extends CheckInState {
-  const CheckInInitial();
-}
+class CheckInInitial extends CheckInState {}
 
-class CheckInLoading extends CheckInState {
-  const CheckInLoading();
-}
+class CheckInLoading extends CheckInState {}
 
 class CheckInLoaded extends CheckInState {
-  final List<CheckInEntity> checkIns;
   final bool hasCheckedInToday;
+  final DateTime? todayCheckInTime;
+  final int streakCount;
+  final List<CheckIn> checkIns;
 
   const CheckInLoaded({
-    required this.checkIns,
     required this.hasCheckedInToday,
+    required this.todayCheckInTime,
+    required this.streakCount,
+    required this.checkIns,
   });
 
-  CheckInLoaded copyWith({
-    List<CheckInEntity>? checkIns,
-    bool? hasCheckedInToday,
-  }) {
-    return CheckInLoaded(
-      checkIns: checkIns ?? this.checkIns,
-      hasCheckedInToday: hasCheckedInToday ?? this.hasCheckedInToday,
-    );
-  }
+  @override
+  List<Object?> get props => [hasCheckedInToday, todayCheckInTime, streakCount, checkIns];
+}
+
+class CheckInSuccess extends CheckInState {
+  final DateTime checkInTime;
+  final int streakCount;
+
+  const CheckInSuccess({
+    required this.checkInTime,
+    required this.streakCount,
+  });
 
   @override
-  List<Object?> get props => [checkIns, hasCheckedInToday];
+  List<Object?> get props => [checkInTime, streakCount];
+}
+
+class CheckInAlreadyDone extends CheckInState {
+  final DateTime checkInTime;
+  final int streakCount;
+
+  const CheckInAlreadyDone({
+    required this.checkInTime,
+    required this.streakCount,
+  });
+
+  @override
+  List<Object?> get props => [checkInTime, streakCount];
+}
+
+class CheckInHistoryLoaded extends CheckInState {
+  final List<CheckIn> checkIns;
+  final List<DateTime> last30Days;
+
+  const CheckInHistoryLoaded({
+    required this.checkIns,
+    required this.last30Days,
+  });
+
+  @override
+  List<Object?> get props => [checkIns, last30Days];
 }
 
 class CheckInError extends CheckInState {
   final String message;
 
-  const CheckInError(this.message);
+  const CheckInError({required this.message});
 
   @override
   List<Object?> get props => [message];
 }
+

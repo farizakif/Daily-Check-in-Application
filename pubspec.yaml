@@ -1,5 +1,5 @@
 name: daily_check_in
-description: A production-ready Daily Check-In Flutter app using Clean Architecture and BLoC.
+description: A Daily Check-In Flutter app using BLoC.
 publish_to: "none"
 
 version: 1.0.0+1

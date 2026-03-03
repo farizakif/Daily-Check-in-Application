@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+import 'package:google_fonts/google_fonts.dart';
 import 'core/theme/app_theme.dart';
 import 'data/datasources/checkin_local_datasource.dart';
 import 'data/repositories/checkin_repository_impl.dart';
@@ -14,6 +14,7 @@ import 'presentation/pages/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  GoogleFonts.config.allowRuntimeFetching = true;
 
   final localDataSource = await CheckInLocalDataSourceImpl.create();
   final repository = CheckInRepositoryImpl(localDataSource: localDataSource);

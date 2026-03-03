@@ -30,7 +30,7 @@ class DateUtilsHelper {
   static String dailyGreeting(DateTime dateTime) {
     final hour = dateTime.hour;
     if (hour < 12) {
-      return 'Good morning, let\'s start strong.';
+      return 'Good morning, have a good day !';
     } else if (hour < 18) {
       return 'Good afternoon, keep the momentum.';
     } else {
